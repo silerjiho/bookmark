@@ -1,4 +1,4 @@
-import { readIssues, parseBody } from './github';
+import { readIssues, parseBody, type GitHubIssue } from './github';
 import { getImage, type PokemonData } from './pokemon';
 
 export interface PokemonBiology {
@@ -15,7 +15,7 @@ export async function readBiology(): Promise<PokemonBiology[]> {
   const issues = await readIssues();
 
   const documents = await Promise.all(
-    issues.map(async (issue: any) => {
+    issues.map(async (issue: GitHubIssue) => {
       try {
         const rawDoc = parseBody(issue.body || '');
 
