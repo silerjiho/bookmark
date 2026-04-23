@@ -1,4 +1,4 @@
-import type { MyPokemon } from "../api/box";
+import { MAX_FRIENDSHIP, getItemName, type MyPokemon } from "../api/box";
 
 interface PokemonCardProps {
   pokemon: MyPokemon;
@@ -16,7 +16,7 @@ export default function PokemonCard({ pokemon, onClick }: PokemonCardProps) {
         alt={pokemon.name}
         className="w-24 h-24 object-contain"
       />
-      <div className="text-center">
+      <div className="text-center w-full">
         <div className="font-bold text-slate-900">{pokemon.nickname}</div>
         {pokemon.nickname !== pokemon.name && (
           <div className="text-xs text-slate-400">{pokemon.name}</div>
@@ -24,6 +24,14 @@ export default function PokemonCard({ pokemon, onClick }: PokemonCardProps) {
         <div className="text-sm font-medium text-slate-500 mt-0.5">
           Lv.{pokemon.level}
         </div>
+        <div className="text-xs text-pink-500 mt-0.5 tracking-tighter">
+          친밀도 {pokemon.friendship}/{MAX_FRIENDSHIP}
+        </div>
+        {pokemon.heldItem && (
+          <div className="text-[10px] text-amber-600 mt-1 truncate" title={getItemName(pokemon.heldItem)}>
+            [{getItemName(pokemon.heldItem)}]
+          </div>
+        )}
         <div className="flex gap-1 justify-center mt-1 flex-wrap">
           {pokemon.types.map((t) => (
             <span

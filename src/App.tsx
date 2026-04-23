@@ -3,65 +3,97 @@ import {
   readBox,
   catchPokemon,
   feedBerry,
+  playWith,
+  buyItem,
+  unequipItem,
   evolvePokemon,
   releasePokemon,
   type MyPokemon,
   type Berry,
+  type ShopItem,
 } from "./api/box";
 import type { NextEvolution } from "./api/pokemon";
 import PokemonCard from "./components/PokemonCard";
 import PokemonDetail from "./components/PokemonDetail";
+import TransferOverlay from "./components/TransferOverlay";
 
 export default function App() {
   const [myPokemon, setMyPokemon] = useState<MyPokemon[]>([]);
   const [selected, setSelected] = useState<MyPokemon | null>(null);
   const [loading, setLoading] = useState(true);
-  const [catching, setCatching] = useState(false);
+  const [transferring, setTransferring] = useState(false);
 
   useEffect(() => {
     readBox().then(setMyPokemon).finally(() => setLoading(false));
   }, []);
 
-  const handleCatch = async () => {
-    if (catching) return;
-    setCatching(true);
+  const replace = (updated: MyPokemon) => {
+    setMyPokemon((prev) =>
+      prev.map((p) => (p.issueNumber === updated.issueNumber ? updated : p)),
+    );
+    setSelected(updated);
+  };
+
+  const withTransfer = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
+    if (transferring) return;
+    setTransferring(true);
     try {
-      const newPokemon = await catchPokemon();
-      setMyPokemon((prev) => [...prev, newPokemon]);
+      return await fn();
     } catch (e) {
-      console.error("포획 실패", e);
-      alert("포획에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "오류가 발생했습니다";
+      alert(msg);
+      return undefined;
     } finally {
-      setCatching(false);
+      setTransferring(false);
     }
   };
 
-  const handleFeed = async (berry: Berry) => {
-    if (!selected) return;
-    const updated = await feedBerry(selected, berry);
-    setMyPokemon((prev) =>
-      prev.map((p) => (p.issueNumber === updated.issueNumber ? updated : p)),
-    );
-    setSelected(updated);
-  };
+  const handleCatch = () =>
+    withTransfer(async () => {
+      const newPokemon = await catchPokemon();
+      setMyPokemon((prev) => [...prev, newPokemon]);
+    });
 
-  const handleEvolve = async (next: NextEvolution) => {
-    if (!selected) return;
-    const updated = await evolvePokemon(selected, next);
-    setMyPokemon((prev) =>
-      prev.map((p) => (p.issueNumber === updated.issueNumber ? updated : p)),
-    );
-    setSelected(updated);
-  };
+  const handleFeed = (berry: Berry) =>
+    withTransfer(async () => {
+      if (!selected) return;
+      replace(await feedBerry(selected, berry));
+    });
 
-  const handleRelease = async () => {
-    if (!selected) return;
-    await releasePokemon(selected.issueNumber);
-    setMyPokemon((prev) =>
-      prev.filter((p) => p.issueNumber !== selected.issueNumber),
-    );
-    setSelected(null);
-  };
+  const handlePlay = () =>
+    withTransfer(async () => {
+      if (!selected) return;
+      replace(await playWith(selected));
+    });
+
+  const handleBuyItem = (item: ShopItem) =>
+    withTransfer(async () => {
+      if (!selected) return;
+      replace(await buyItem(selected, item));
+    });
+
+  const handleUnequip = () =>
+    withTransfer(async () => {
+      if (!selected) return;
+      replace(await unequipItem(selected));
+    });
+
+  const handleEvolve = (next: NextEvolution) =>
+    withTransfer(async () => {
+      if (!selected) return;
+      replace(await evolvePokemon(selected, next));
+    });
+
+  const handleRelease = () =>
+    withTransfer(async () => {
+      if (!selected) return;
+      await releasePokemon(selected.issueNumber);
+      setMyPokemon((prev) =>
+        prev.filter((p) => p.issueNumber !== selected.issueNumber),
+      );
+      setSelected(null);
+    });
 
   if (loading) {
     return (
@@ -77,10 +109,10 @@ export default function App() {
         <h1 className="text-2xl font-bold text-slate-900">포켓몬 박스</h1>
         <button
           onClick={handleCatch}
-          disabled={catching}
+          disabled={transferring}
           className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-600 disabled:opacity-60 transition-colors shadow-sm"
         >
-          {catching ? "포획 중..." : "랜덤 포획!"}
+          랜덤 포획!
         </button>
       </div>
 
@@ -100,12 +132,18 @@ export default function App() {
       {selected && (
         <PokemonDetail
           pokemon={selected}
+          transferring={transferring}
           onClose={() => setSelected(null)}
           onFeed={handleFeed}
+          onPlay={handlePlay}
+          onBuyItem={handleBuyItem}
+          onUnequip={handleUnequip}
           onEvolve={handleEvolve}
           onRelease={handleRelease}
         />
       )}
+
+      {transferring && <TransferOverlay />}
     </div>
   );
 }
