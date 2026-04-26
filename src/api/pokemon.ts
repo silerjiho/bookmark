@@ -13,6 +13,35 @@ export const TYPE_KO: Record<string, string> = {
   steel: "강철", fairy: "페어리",
 };
 
+/** Background color per type, keyed by Korean label. */
+export const TYPE_COLORS: Record<string, string> = {
+  노말: "#9FA19F",
+  불꽃: "#E62829",
+  물: "#2980EF",
+  전기: "#FAC000",
+  풀: "#3FA129",
+  얼음: "#3DCEF3",
+  격투: "#FF8000",
+  독: "#9141CB",
+  땅: "#915121",
+  비행: "#81B9EF",
+  에스퍼: "#EF4179",
+  벌레: "#91A119",
+  바위: "#AFA981",
+  고스트: "#704170",
+  드래곤: "#5060E1",
+  악: "#624D4E",
+  강철: "#60A1B8",
+  페어리: "#EF70EF",
+};
+
+const LIGHT_TYPE_BG = new Set(["전기", "얼음", "비행", "바위", "페어리"]);
+
+/** Returns "#1d1d1f" or "#ffffff" — pick whichever reads on the given type's background. */
+export function getTypeTextColor(typeKo: string): string {
+  return LIGHT_TYPE_BG.has(typeKo) ? "#1d1d1f" : "#ffffff";
+}
+
 export interface PokemonInfo {
   id: number;
   koreanName: string;
@@ -41,6 +70,8 @@ interface SpeciesResponse {
   evolution_chain: { url: string };
   evolves_from_species: { name: string } | null;
   generation: { name: string };
+  is_legendary: boolean;
+  is_mythical: boolean;
 }
 
 interface PokemonResponse {
@@ -83,14 +114,16 @@ export async function getPokemonInfo(pokemonId: number): Promise<PokemonInfo> {
   };
 }
 
-/** Pick a random base-form pokemon ID (a species with no `evolves_from_species`). Retries up to maxAttempts times. */
-export async function pickRandomBaseFormId(maxAttempts = 10): Promise<number> {
+/** Pick a random base-form pokemon ID. Excludes legendary and mythical species. Retries up to maxAttempts. */
+export async function pickRandomBaseFormId(maxAttempts = 20): Promise<number> {
   for (let i = 0; i < maxAttempts; i++) {
     const id = Math.floor(Math.random() * MAX_SPECIES_ID) + 1;
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`);
     if (!res.ok) continue;
     const species: SpeciesResponse = await res.json();
-    if (species.evolves_from_species == null) return id;
+    if (species.evolves_from_species != null) continue;
+    if (species.is_legendary || species.is_mythical) continue;
+    return id;
   }
   throw new Error("Failed to find a base-form pokemon after retries");
 }
@@ -100,6 +133,7 @@ interface EvolutionDetailRaw {
   min_happiness: number | null;
   trigger: { name: string };
   item: { name: string; url: string } | null;
+  held_item: { name: string; url: string } | null;
 }
 
 interface EvolutionNode {
@@ -130,6 +164,13 @@ function extractId(url: string): number {
 function parseRequirement(detail: EvolutionDetailRaw): EvolutionRequirement {
   if (detail.trigger.name === "level-up") {
     if (detail.min_happiness != null) return { kind: "friendship" };
+    if (detail.held_item != null) {
+      return {
+        kind: "item",
+        itemKey: detail.held_item.name,
+        itemName: getItemName(detail.held_item.name),
+      };
+    }
     if (detail.min_level != null) return { kind: "level", minLevel: detail.min_level };
     return { kind: "level", minLevel: 1 };
   }
@@ -138,6 +179,15 @@ function parseRequirement(detail: EvolutionDetailRaw): EvolutionRequirement {
       kind: "item",
       itemKey: detail.item.name,
       itemName: getItemName(detail.item.name),
+    };
+  }
+  // Trade evolutions (often with a held item) are surfaced as a held-item requirement
+  // since this game has no trade mechanic — the user can just equip the item.
+  if (detail.trigger.name === "trade" && detail.held_item) {
+    return {
+      kind: "item",
+      itemKey: detail.held_item.name,
+      itemName: getItemName(detail.held_item.name),
     };
   }
   return { kind: "unsupported", trigger: detail.trigger.name };
