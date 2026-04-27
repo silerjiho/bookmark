@@ -1,8 +1,8 @@
-import { useBoxStore } from "../store/boxStore";
+import { useToastStore } from "../store/toastStore";
 
 export default function ToastContainer() {
-  const toasts = useBoxStore((s) => s.toasts);
-  const dismiss = useBoxStore((s) => s.dismissToast);
+  const toasts = useToastStore((s) => s.toasts);
+  const dismiss = useToastStore((s) => s.dismissToast);
 
   if (toasts.length === 0) return null;
 
