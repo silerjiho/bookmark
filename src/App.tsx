@@ -1,47 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
-import { useBoxStore, buildDisplayItems } from "./store/boxStore";
+import { useState } from "react";
 import type { MyPokemon } from "./lib/box";
 import PokemonCard from "./components/PokemonCard";
 import PokemonDetail from "./components/PokemonDetail";
 import ToastContainer from "./components/Toast";
+import { useBoxManager } from "./hooks/useBoxManager";
 
 export default function App() {
-  const loading = useBoxStore((s) => s.loading);
-  const error = useBoxStore((s) => s.error);
-  const serverList = useBoxStore((s) => s.serverList);
-  const pending = useBoxStore((s) => s.pending);
-  const loadInitial = useBoxStore((s) => s.loadInitial);
-  const catchPokemon = useBoxStore((s) => s.catchPokemon);
-
-  const items = useMemo(
-    () => buildDisplayItems(serverList, pending),
-    [serverList, pending],
-  );
+  const {
+    loading,
+    error,
+    serverList,
+    pending,
+    items,
+    transferringCount,
+    handleCatch,
+    loadInitial,
+  } = useBoxManager();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = useMemo(
-    () => serverList.find((p) => p.uniqueId === selectedId) ?? null,
-    [serverList, selectedId],
-  );
-  const selectedPending = useMemo(
-    () => pending.find((p) => p.uniqueId === selectedId) ?? null,
-    [pending, selectedId],
-  );
-
-  useEffect(() => {
-    loadInitial();
-  }, [loadInitial]);
-
-  const transferringCount = pending.filter((p) => p.kind === "creating").length;
-
-  const handleCatch = async () => {
-    try {
-      await catchPokemon();
-    } catch (e) {
-      console.error(e);
-      alert(e instanceof Error ? e.message : "전송 실패");
-    }
-  };
+  
+  const selected = serverList.find((p) => p.uniqueId === selectedId) ?? null;
+  const selectedPending = pending.find((p) => p.uniqueId === selectedId) ?? null;
 
   const handleSelect = (p: MyPokemon) => setSelectedId(p.uniqueId);
 

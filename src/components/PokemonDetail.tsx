@@ -1,40 +1,26 @@
-import { useEffect, useRef, useState } from "react";
-import { useBoxStore } from "../store/boxStore";
-import type { PendingKind } from "../store/boxStore";
+import { useRef, useState } from "react";
 import {
   type MyPokemon,
   MAX_LEVEL,
   MAX_FRIENDSHIP,
 } from "../lib/box";
-import { type Berry, getBerryPlan } from "../lib/berries";
+import { getBerryPlan } from "../lib/berries";
 import { type ShopItem, getItemName } from "../lib/items";
-import { getNextEvolutions } from "../api/pokeapi.api";
 import {
   TYPE_COLORS,
   getTypeTextColor,
-  type NextEvolution,
   type EvolutionRequirement,
 } from "../lib/pokemon";
+import type { PendingKind } from "../store/boxStore";
 import ShopModal from "./ShopModal";
+import { useParticles } from "../hooks/useParticles";
+import { useEvolution } from "../hooks/useEvolution";
+import { usePokemonActions } from "../hooks/usePokemonActions";
 
 interface Props {
   pokemon: MyPokemon;
   pendingKind: PendingKind | null;
   onClose: () => void;
-}
-
-function meets(req: EvolutionRequirement, p: MyPokemon): boolean {
-  switch (req.kind) {
-    case "level":
-      return p.level >= req.minLevel;
-    case "friendship":
-      return p.friendship >= MAX_FRIENDSHIP;
-    case "item":
-      return p.heldItem === req.itemKey;
-    case "unsupported":
-    default:
-      return false;
-  }
 }
 
 function describe(req: EvolutionRequirement, p: MyPokemon): string {
@@ -55,130 +41,49 @@ function describe(req: EvolutionRequirement, p: MyPokemon): string {
   }
 }
 
-interface Particle {
-  id: number;
-  emoji: string;
-  dx: number;
-  dy: number;
-  delay: number;
-}
-
-let particleCounter = 0;
-
 export default function PokemonDetail({
   pokemon,
   pendingKind,
   onClose,
 }: Props) {
-  const feedBerry = useBoxStore((s) => s.feedBerry);
-  const playWith = useBoxStore((s) => s.playWith);
-  const buyItem = useBoxStore((s) => s.buyItem);
-  const unequipItem = useBoxStore((s) => s.unequipItem);
-  const evolvePokemon = useBoxStore((s) => s.evolvePokemon);
-  const releasePokemon = useBoxStore((s) => s.releasePokemon);
-
-  const [nextEvolutions, setNextEvolutions] = useState<
-    NextEvolution[] | undefined
-  >(undefined);
   const [shopOpen, setShopOpen] = useState(false);
-  const [particles, setParticles] = useState<Particle[]>([]);
-  const [evolveFlash, setEvolveFlash] = useState(false);
-  const [releaseAnim, setReleaseAnim] = useState(false);
   const heartRef = useRef<HTMLDivElement>(null);
 
   const acting = pendingKind != null;
   const berries = getBerryPlan(pokemon.pokemonId);
 
-  useEffect(() => {
-    setNextEvolutions(undefined);
-    getNextEvolutions(pokemon.pokemonId, pokemon.evolutionChainUrl).then(
-      setNextEvolutions,
-    );
-  }, [pokemon.pokemonId, pokemon.evolutionChainUrl]);
+  const { particles, burstParticles } = useParticles();
+  const { nextEvolutions, checkMeetsRequirement } = useEvolution(pokemon);
+  
+  const {
+    handleFeed,
+    handlePlay,
+    handleBuy,
+    handleUnequip,
+    handleEvolve,
+    handleRelease,
+    evolveFlash,
+    releaseAnim,
+  } = usePokemonActions({
+    pokemon,
+    acting,
+    onBurstParticles: burstParticles,
+    onClose,
+  });
 
-  const burstParticles = (kind: "level" | "heart") => {
-    const baseEmoji =
-      kind === "level" ? ["⭐", "✨", "✦", "★"] : ["💗", "♥", "💕"];
-    const newOnes: Particle[] = Array.from({ length: 10 }, () => ({
-      id: ++particleCounter,
-      emoji: baseEmoji[Math.floor(Math.random() * baseEmoji.length)],
-      dx: (Math.random() - 0.5) * 200,
-      dy: -100 - Math.random() * 80,
-      delay: Math.random() * 200,
-    }));
-    setParticles((prev) => [...prev, ...newOnes]);
-    setTimeout(() => {
-      setParticles((prev) => prev.filter((p) => !newOnes.includes(p)));
-    }, 1400);
-  };
-
-  const handleFeed = async (berry: Berry) => {
-    if (acting || pokemon.level >= MAX_LEVEL) return;
-    burstParticles("level");
-    try {
-      await feedBerry(pokemon, berry);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "오류");
-    }
-  };
-
-  const handlePlay = async () => {
+  const wrappedHandlePlay = async () => {
     if (acting || pokemon.friendship >= MAX_FRIENDSHIP) return;
-    burstParticles("heart");
     if (heartRef.current) {
       heartRef.current.classList.remove("animate-heart-pop");
       void heartRef.current.offsetWidth;
       heartRef.current.classList.add("animate-heart-pop");
     }
-    try {
-      await playWith(pokemon);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "오류");
-    }
+    await handlePlay();
   };
 
-  const handleBuy = async (item: ShopItem) => {
-    if (acting) return;
-    setShopOpen(false);
-    try {
-      await buyItem(pokemon, item);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "오류");
-    }
-  };
-
-  const handleUnequip = async () => {
-    if (acting || !pokemon.heldItem) return;
-    try {
-      await unequipItem(pokemon);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "오류");
-    }
-  };
-
-  const handleEvolve = async (next: NextEvolution) => {
-    if (acting) return;
-    setEvolveFlash(true);
-    setTimeout(() => setEvolveFlash(false), 1200);
-    try {
-      await evolvePokemon(pokemon, next);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "오류");
-    }
-  };
-
-  const handleRelease = async () => {
-    if (acting) return;
-    if (!confirm(`${pokemon.name}을(를) 정말 놓아주시겠습니까?`)) return;
-    setReleaseAnim(true);
-    try {
-      await releasePokemon(pokemon);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "오류");
-      setReleaseAnim(false);
-      return;
-    }
-    setTimeout(onClose, 1400);
+  const wrappedHandleBuy = async (item: ShopItem) => {
+    const success = await handleBuy(item);
+    if (success) setShopOpen(false);
   };
 
   const atMaxLevel = pokemon.level >= MAX_LEVEL;
@@ -359,7 +264,7 @@ export default function PokemonDetail({
         <Section>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={handlePlay}
+              onClick={wrappedHandlePlay}
               disabled={acting || atMaxFriendship}
               className="bg-[#f5f5f7] hover:bg-black/6 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl py-3 text-[14px] font-medium text-[#1d1d1f] tracking-tight transition"
             >
@@ -388,7 +293,7 @@ export default function PokemonDetail({
           ) : (
             <div className="space-y-2">
               {nextEvolutions.map((next) => {
-                const ok = meets(next.requirement, pokemon);
+                const ok = checkMeetsRequirement(next.requirement);
                 return (
                   <div
                     key={next.pokemonId}
@@ -442,7 +347,7 @@ export default function PokemonDetail({
           points={pokemon.points}
           acting={acting}
           onClose={() => setShopOpen(false)}
-          onBuy={handleBuy}
+          onBuy={wrappedHandleBuy}
         />
       )}
     </div>
