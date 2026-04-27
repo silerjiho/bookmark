@@ -3,20 +3,18 @@ import { useBoxStore } from "../store/boxStore";
 import type { PendingKind } from "../store/boxStore";
 import {
   type MyPokemon,
-  type Berry,
-  type ShopItem,
   MAX_LEVEL,
   MAX_FRIENDSHIP,
-  getBerryPlan,
-  getItemName,
-} from "../api/box";
+} from "../lib/box";
+import { type Berry, getBerryPlan } from "../lib/berries";
+import { type ShopItem, getItemName } from "../lib/items";
+import { getNextEvolutions } from "../api/pokeapi";
 import {
-  getNextEvolutions,
   TYPE_COLORS,
   getTypeTextColor,
   type NextEvolution,
   type EvolutionRequirement,
-} from "../api/pokemon";
+} from "../lib/pokemon";
 import ShopModal from "./ShopModal";
 
 interface Props {
@@ -34,6 +32,7 @@ function meets(req: EvolutionRequirement, p: MyPokemon): boolean {
     case "item":
       return p.heldItem === req.itemKey;
     case "unsupported":
+    default:
       return false;
   }
 }
@@ -51,7 +50,8 @@ function describe(req: EvolutionRequirement, p: MyPokemon): string {
           : ` (현재 ${p.heldItem ? getItemName(p.heldItem) : "없음"})`
       }`;
     case "unsupported":
-      return `미지원 진화 조건 (${req.trigger})`;
+    default:
+      return `미지원 진화 조건 (${req.kind === "unsupported" ? req.trigger : "알 수 없음"})`;
   }
 }
 
@@ -65,7 +65,11 @@ interface Particle {
 
 let particleCounter = 0;
 
-export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) {
+export default function PokemonDetail({
+  pokemon,
+  pendingKind,
+  onClose,
+}: Props) {
   const feedBerry = useBoxStore((s) => s.feedBerry);
   const playWith = useBoxStore((s) => s.playWith);
   const buyItem = useBoxStore((s) => s.buyItem);
@@ -73,9 +77,9 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
   const evolvePokemon = useBoxStore((s) => s.evolvePokemon);
   const releasePokemon = useBoxStore((s) => s.releasePokemon);
 
-  const [nextEvolutions, setNextEvolutions] = useState<NextEvolution[] | undefined>(
-    undefined,
-  );
+  const [nextEvolutions, setNextEvolutions] = useState<
+    NextEvolution[] | undefined
+  >(undefined);
   const [shopOpen, setShopOpen] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [evolveFlash, setEvolveFlash] = useState(false);
@@ -87,11 +91,14 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
 
   useEffect(() => {
     setNextEvolutions(undefined);
-    getNextEvolutions(pokemon.pokemonId, pokemon.evolutionChainUrl).then(setNextEvolutions);
+    getNextEvolutions(pokemon.pokemonId, pokemon.evolutionChainUrl).then(
+      setNextEvolutions,
+    );
   }, [pokemon.pokemonId, pokemon.evolutionChainUrl]);
 
   const burstParticles = (kind: "level" | "heart") => {
-    const baseEmoji = kind === "level" ? ["⭐", "✨", "✦", "★"] : ["💗", "♥", "💕"];
+    const baseEmoji =
+      kind === "level" ? ["⭐", "✨", "✦", "★"] : ["💗", "♥", "💕"];
     const newOnes: Particle[] = Array.from({ length: 10 }, () => ({
       id: ++particleCounter,
       emoji: baseEmoji[Math.floor(Math.random() * baseEmoji.length)],
@@ -187,7 +194,7 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ───────────────────────────────────────── */}
-        <div className="sticky top-0 bg-white/85 backdrop-blur-xl px-5 py-3 flex items-center justify-between border-b border-black/[0.06] z-10">
+        <div className="sticky top-0 bg-white/85 backdrop-blur-xl px-5 py-3 flex items-center justify-between border-b border-black/6 z-10">
           <div className="min-w-0">
             <h2 className="text-[17px] font-semibold text-[#1d1d1f] tracking-tight truncate">
               {pokemon.name}
@@ -195,7 +202,7 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-black/[0.06] hover:bg-black/[0.12] text-[#1d1d1f] flex items-center justify-center text-[15px] leading-none transition"
+            className="w-8 h-8 rounded-full bg-black/6 hover:bg-black/12 text-[#1d1d1f] flex items-center justify-center text-[15px] leading-none transition"
             aria-label="닫기"
           >
             ✕
@@ -209,23 +216,22 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
               pendingKind === "parting" ? "bg-[#1d1d1f]" : "bg-[#0071e3]"
             }`}
           >
-            {pendingKind === "creating" && "전송중 — 새로운 친구가 박스에 도착하고 있어요"}
-            {pendingKind === "growing" && "성장중 — 포켓몬이 변화하고 있어요"}
-            {pendingKind === "parting" && "이별 하는 중.. — 야생으로 돌려보내는 중이에요"}
+            {pendingKind === "creating" &&
+              "전송중 — 새로운 친구가 박스에 도착하고 있어요"}
+            {pendingKind === "parting" &&
+              "이별 하는 중.. — 야생으로 돌려보내는 중이에요"}
           </div>
         )}
 
         {/* ── Sprite ───────────────────────────────────────── */}
         <div className="relative px-6 pt-6 pb-2 bg-[#f5f5f7]">
-          <div className="aspect-square max-w-[260px] mx-auto relative">
+          <div className="aspect-square max-w-65 mx-auto relative">
             <img
               src={pokemon.image}
               alt={pokemon.name}
               className={`w-full h-full object-contain ${
                 evolveFlash ? "animate-evolve-shimmer" : ""
-              } ${releaseAnim ? "animate-release" : ""} ${
-                pendingKind === "growing" ? "animate-growing" : ""
-              }`}
+              } ${releaseAnim ? "animate-release" : ""}`}
             />
             {evolveFlash && (
               <div className="absolute inset-0 rounded-full animate-evolve-flash pointer-events-none" />
@@ -252,7 +258,7 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
 
           {/* Type pills */}
           <div className="flex gap-1.5 justify-center mt-3 mb-1">
-            {pokemon.types.map((t) => (
+            {pokemon.types.map((t: string) => (
               <span
                 key={t}
                 className="text-[12px] px-3 py-0.5 rounded-full font-semibold tracking-tight"
@@ -267,6 +273,7 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
           </div>
         </div>
 
+
         {/* ── Stats ────────────────────────────────────────── */}
         <div className="px-5 pt-4 grid grid-cols-3 gap-2">
           <Stat label="LEVEL" value={pokemon.level} max={MAX_LEVEL} />
@@ -276,7 +283,7 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
                 <span
                   key={i}
                   className={`w-1 h-1 rounded-full ${
-                    i < pokemon.friendship ? "bg-[#ff375f]" : "bg-black/[0.12]"
+                    i < pokemon.friendship ? "bg-[#ff375f]" : "bg-black/12"
                   }`}
                 />
               ))}
@@ -310,7 +317,13 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
         {/* ── Berries ──────────────────────────────────────── */}
         <Section
           title="나무열매 먹이기"
-          right={atMaxLevel ? <span className="text-[11px] text-[rgba(0,0,0,0.48)]">레벨 MAX</span> : null}
+          right={
+            atMaxLevel ? (
+              <span className="text-[11px] text-[rgba(0,0,0,0.48)]">
+                레벨 MAX
+              </span>
+            ) : null
+          }
         >
           <div className="grid grid-cols-3 gap-2">
             {berries.map((berry) => (
@@ -318,13 +331,24 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
                 key={berry.key}
                 onClick={() => handleFeed(berry)}
                 disabled={acting || atMaxLevel}
-                className="bg-[#f5f5f7] hover:bg-black/[0.06] active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl py-2.5 px-1 transition text-[#1d1d1f]"
+                className="group relative bg-[#f5f5f7] hover:bg-black/6 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl h-16 transition text-[#1d1d1f] overflow-hidden"
               >
-                <div className="text-[13px] font-medium tracking-tight">
-                  {berry.name}
+                {/* Default: Image */}
+                <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-200 group-hover:opacity-0">
+                  <img
+                    src={berry.image}
+                    alt={berry.name}
+                    className="w-10 h-10 object-contain"
+                  />
                 </div>
-                <div className="text-[11px] text-[#0066cc] mt-0.5 tracking-tight">
-                  +Lv {berry.levelGain}
+                {/* Hover: Info */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="text-[12px] font-semibold tracking-tight leading-tight">
+                    {berry.name}
+                  </div>
+                  <div className="text-[10px] text-[#0066cc] font-medium tracking-tight">
+                    +Lv {berry.levelGain}
+                  </div>
                 </div>
               </button>
             ))}
@@ -337,14 +361,14 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
             <button
               onClick={handlePlay}
               disabled={acting || atMaxFriendship}
-              className="bg-[#f5f5f7] hover:bg-black/[0.06] active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl py-3 text-[14px] font-medium text-[#1d1d1f] tracking-tight transition"
+              className="bg-[#f5f5f7] hover:bg-black/6 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl py-3 text-[14px] font-medium text-[#1d1d1f] tracking-tight transition"
             >
               {atMaxFriendship ? "친밀도 MAX" : "놀아주기"}
             </button>
             <button
               onClick={() => setShopOpen(true)}
               disabled={acting}
-              className="bg-[#f5f5f7] hover:bg-black/[0.06] active:scale-[0.97] disabled:opacity-40 rounded-xl py-3 text-[14px] font-medium text-[#1d1d1f] tracking-tight transition"
+              className="bg-[#f5f5f7] hover:bg-black/6 active:scale-[0.97] disabled:opacity-40 rounded-xl py-3 text-[14px] font-medium text-[#1d1d1f] tracking-tight transition"
             >
               상점
             </button>
@@ -390,7 +414,7 @@ export default function PokemonDetail({ pokemon, pendingKind, onClose }: Props) 
                     <button
                       onClick={() => handleEvolve(next)}
                       disabled={!ok || acting}
-                      className="bg-[#0071e3] hover:brightness-110 active:scale-[0.97] disabled:bg-black/[0.08] disabled:text-[rgba(0,0,0,0.32)] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-full px-4 py-1.5 tracking-tight transition"
+                      className="bg-[#0071e3] hover:brightness-110 active:scale-[0.97] disabled:bg-black/8 disabled:text-[rgba(0,0,0,0.32)] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-full px-4 py-1.5 tracking-tight transition"
                     >
                       진화
                     </button>
@@ -471,9 +495,16 @@ function Stat({
       </div>
       <div className="text-[16px] font-semibold text-[#1d1d1f] tracking-tight mt-0.5">
         {value}
-        {suffix && <span className="text-[12px] text-[rgba(0,0,0,0.48)] ml-0.5">{suffix}</span>}
+        {suffix && (
+          <span className="text-[12px] text-[rgba(0,0,0,0.48)] ml-0.5">
+            {suffix}
+          </span>
+        )}
         {max && (
-          <span className="text-[11px] text-[rgba(0,0,0,0.48)] font-normal"> / {max}</span>
+          <span className="text-[11px] text-[rgba(0,0,0,0.48)] font-normal">
+            {" "}
+            / {max}
+          </span>
         )}
       </div>
       {children}

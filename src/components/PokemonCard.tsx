@@ -1,12 +1,13 @@
-import { MAX_FRIENDSHIP, getItemName, type MyPokemon } from "../api/box";
-import { TYPE_COLORS, getTypeTextColor } from "../api/pokemon";
+import { useEffect, useRef, useState } from "react";
+import { MAX_FRIENDSHIP, type MyPokemon } from "../lib/box";
+import { getItemName } from "../lib/items";
+import { TYPE_COLORS, getTypeTextColor } from "../lib/pokemon";
+import { useBoxStore } from "../store/boxStore";
 
-export type CardKind = "normal" | "creating" | "growing" | "parting";
+export type CardKind = "normal" | "creating" | "parting";
 
 interface PokemonCardProps {
   pokemon: MyPokemon | null;
-  /** Optimistic snapshot, used when kind === "growing" to render the *target* values. */
-  optimistic?: MyPokemon | null;
   kind: CardKind;
   onClick?: (p: MyPokemon) => void;
 }
@@ -17,11 +18,6 @@ function StatusBadge({ kind }: { kind: Exclude<CardKind, "normal"> }) {
   const config = {
     creating: {
       label: "전송중",
-      bg: "bg-[#0071e3]",
-      fg: "text-white",
-    },
-    growing: {
-      label: "성장중",
       bg: "bg-[#0071e3]",
       fg: "text-white",
     },
@@ -117,12 +113,119 @@ function TypeChips({ types }: { types: string[] }) {
   );
 }
 
-function PokemonInfo({ pokemon }: { pokemon: MyPokemon }) {
+function NicknameInput({
+  pokemon,
+  onDone,
+}: {
+  pokemon: MyPokemon;
+  onDone: () => void;
+}) {
+  const renameNickname = useBoxStore((s) => s.renameNickname);
+  const [draft, setDraft] = useState(pokemon.nickname);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const committedRef = useRef(false);
+
+  useEffect(() => {
+    inputRef.current?.select();
+  }, []);
+
+  const stop = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+  };
+
+  const commit = async () => {
+    if (committedRef.current) return;
+    committedRef.current = true;
+    const next = draft.trim();
+    onDone();
+    if (!next || next === pokemon.nickname) return;
+    try {
+      await renameNickname(pokemon, next);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "닉네임 변경 실패");
+    }
+  };
+
+  return (
+    <div className="w-full" onClick={stop} onMouseDown={stop}>
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onClick={stop}
+        onMouseDown={stop}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void commit();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            committedRef.current = true;
+            onDone();
+          }
+        }}
+        onBlur={() => void commit()}
+        maxLength={12}
+        placeholder={pokemon.name}
+        className="w-full text-center text-[15px] font-semibold text-[#1d1d1f] tracking-tight bg-white border border-[#0071e3] rounded-md px-1.5 py-0.5 outline-none"
+      />
+    </div>
+  );
+}
+
+function NicknameEditor({
+  pokemon,
+  editable,
+}: {
+  pokemon: MyPokemon;
+  editable: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return <NicknameInput pokemon={pokemon} onDone={() => setEditing(false)} />;
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1">
+      <span className="text-[15px] font-semibold text-[#1d1d1f] tracking-tight truncate">
+        {pokemon.nickname}
+      </span>
+      {editable && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditing(true);
+          }}
+          className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px] text-[rgba(0,0,0,0.48)] hover:text-[#0071e3] transition-opacity"
+          aria-label="닉네임 변경"
+        >
+          ✎
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PokemonInfo({
+  pokemon,
+  editable,
+}: {
+  pokemon: MyPokemon;
+  editable: boolean;
+}) {
+  const showsSpecies =
+    pokemon.nickname && pokemon.name && pokemon.nickname !== pokemon.name;
   return (
     <div className="text-center w-full">
-      <div className="text-[15px] font-semibold text-[#1d1d1f] tracking-tight truncate">
-        {pokemon.name}
-      </div>
+      <NicknameEditor pokemon={pokemon} editable={editable} />
+      {showsSpecies && editable && (
+        <div className="text-[11px] text-[rgba(0,0,0,0.48)] tracking-tight mt-0.5 truncate">
+          {pokemon.name}
+        </div>
+      )}
       <div className="text-[12px] font-medium text-[rgba(0,0,0,0.8)] mt-1 tracking-tight">
         Lv.{pokemon.level}
       </div>
@@ -142,27 +245,37 @@ function PokemonInfo({ pokemon }: { pokemon: MyPokemon }) {
 
 export default function PokemonCard({
   pokemon,
-  optimistic,
   kind,
   onClick,
 }: PokemonCardProps) {
   if (kind === "creating") {
-    return <CreatingCard optimistic={optimistic ?? pokemon} />;
+    return <CreatingCard optimistic={pokemon} />;
   }
   if (!pokemon) return null;
 
   const interactive = kind === "normal";
   const isParting = kind === "parting";
-  const isGrowing = kind === "growing";
-  // Always render the server snapshot — never the optimistic snapshot.
-  // The post-evolution image must only appear once GitHub actually reflects the change.
-  const display = pokemon;
+
+  const handleActivate = () => {
+    if (interactive && onClick) onClick(pokemon);
+  };
 
   return (
-    <button
-      type="button"
-      onClick={interactive && onClick ? () => onClick(pokemon) : undefined}
-      disabled={!interactive}
+    <div
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : -1}
+      onClick={interactive ? handleActivate : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.target !== e.currentTarget) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleActivate();
+              }
+            }
+          : undefined
+      }
       className={`group relative bg-[#f5f5f7] rounded-2xl p-5 text-left overflow-hidden apple-card-shadow transition-transform ${
         interactive
           ? "hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
@@ -173,46 +286,15 @@ export default function PokemonCard({
 
       <div className="aspect-square flex items-center justify-center mb-3 relative">
         <img
-          src={display.image}
-          alt={display.name}
+          src={pokemon.image}
+          alt={pokemon.name}
           className={`w-full h-full object-contain ${
-            isGrowing ? "animate-growing" : ""
-          } ${isParting ? "animate-parting" : ""}`}
+            isParting ? "animate-parting" : ""
+          }`}
         />
-        {isGrowing && (
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 text-2xl animate-particle">
-              ✨
-            </div>
-            <div
-              className="absolute top-1/2 left-2 text-xl animate-particle"
-              style={
-                {
-                  ["--dx" as string]: "-20px",
-                  ["--dy" as string]: "-80px",
-                  animationDelay: "200ms",
-                } as React.CSSProperties
-              }
-            >
-              ✦
-            </div>
-            <div
-              className="absolute bottom-2 right-2 text-xl animate-particle"
-              style={
-                {
-                  ["--dx" as string]: "20px",
-                  ["--dy" as string]: "-100px",
-                  animationDelay: "400ms",
-                } as React.CSSProperties
-              }
-            >
-              ✦
-            </div>
-          </div>
-        )}
       </div>
 
-      <PokemonInfo pokemon={display} />
-    </button>
+      <PokemonInfo pokemon={pokemon} editable={interactive} />
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { ITEMS, type ShopItem } from "../api/items";
+import { ITEMS, type ShopItem } from "../lib/items";
 
 interface ShopModalProps {
   points: number;

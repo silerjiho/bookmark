@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useBoxStore, buildDisplayItems } from "./store/boxStore";
-import type { MyPokemon } from "./api/box";
+import type { MyPokemon } from "./lib/box";
 import PokemonCard from "./components/PokemonCard";
 import PokemonDetail from "./components/PokemonDetail";
 import ToastContainer from "./components/Toast";
@@ -122,7 +122,6 @@ export default function App() {
               <PokemonCard
                 key={item.key}
                 pokemon={item.pokemon}
-                optimistic={item.optimistic}
                 kind={item.kind}
                 onClick={item.kind === "normal" ? handleSelect : undefined}
               />

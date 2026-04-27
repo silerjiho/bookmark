@@ -1,96 +1,39 @@
 import {
   readIssues,
-  parseBody,
   createIssue,
   updateIssue,
+  updateIssueTitle,
   closeIssue,
   ensureLabel,
   ensureMilestone,
-  updateIssueMilestone,
+  updateIssueLabels,
   createIssueComment,
 } from "./github";
+import { getPokemonInfo, pickRandomBaseFormId } from "./pokeapi";
 import {
-  getPokemonInfo,
-  pickRandomBaseFormId,
-  type NextEvolution,
-} from "./pokemon";
-import type { Berry } from "./berries";
-import { type ShopItem } from "./items";
+  MAX_LEVEL,
+  MAX_FRIENDSHIP,
+  POINTS_PER_LEVEL_UP,
+  parseStoredBody,
+  serializeBody,
+  toView,
+  tickPokemon,
+  type MyPokemon,
+  type PersistedView,
+} from "../lib/box";
+import type { NextEvolution } from "../lib/pokemon";
+import type { Berry } from "../lib/berries";
+import type { ShopItem } from "../lib/items";
 
-export interface MyPokemon {
-  issueNumber: number;
-  uniqueId: string;
-  pokemonId: number;
-  name: string;
-  nickname: string;
-  level: number;
-  friendship: number;
-  points: number;
-  heldItem: string | null;
-  image: string;
-  types: string[];
-  evolutionChainUrl: string;
-  caughtAt: string;
-  lastTickAt: string;
-}
-
-export const MAX_LEVEL = 100;
-export const MAX_FRIENDSHIP = 5;
-export const POINTS_PER_LEVEL_UP = 50;
-export const POINTS_PER_HOUR = 10;
-
-interface StoredBody {
-  uniqueId: string;
-  pokemonId: number;
-  nickname: string;
-  level: number;
-  friendship: number;
-  points: number;
-  heldItem: string | null;
-  caughtAt: string;
-  lastTickAt: string;
-}
-
-function serializeBody(data: StoredBody): string {
-  return `\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``;
-}
-
-function toStored(p: MyPokemon): StoredBody {
-  return {
-    uniqueId: p.uniqueId,
-    pokemonId: p.pokemonId,
-    nickname: p.nickname,
-    level: p.level,
-    friendship: p.friendship,
-    points: p.points,
-    heldItem: p.heldItem,
-    caughtAt: p.caughtAt,
-    lastTickAt: p.lastTickAt,
-  };
-}
-
-function elapsedHours(fromIso: string, toIso: string): number {
-  return (Date.parse(toIso) - Date.parse(fromIso)) / 3_600_000;
-}
-
-export function tickPokemon(
-  p: MyPokemon,
-  now = new Date().toISOString(),
-): MyPokemon {
-  const hours = Math.max(0, elapsedHours(p.lastTickAt, now));
-  const gained = Math.floor(hours * POINTS_PER_HOUR);
-  if (gained <= 0) return p;
-  return { ...p, points: p.points + gained, lastTickAt: now };
-}
-
+/** 박스(=열린 이슈) 전체를 가져와 MyPokemon 배열로 만듭니다. */
 export async function readBox(): Promise<MyPokemon[]> {
   const issues = await readIssues();
 
   const results = await Promise.all(
     issues.map(async (issue) => {
       try {
-        const raw = parseBody(issue.body || "");
-        if (!raw.pokemonId) return null;
+        const raw = parseStoredBody(issue.body || "");
+        if (!raw || !raw.pokemonId) return null;
 
         const info = await getPokemonInfo(raw.pokemonId);
         const caughtAt: string = raw.caughtAt ?? new Date().toISOString();
@@ -123,21 +66,22 @@ export async function readBox(): Promise<MyPokemon[]> {
   return results.filter((p): p is MyPokemon => p !== null);
 }
 
+/** 새 포켓몬을 받아 이슈로 등록합니다.
+ *  타입은 라벨로(복수 가능), 세대는 마일스톤으로(단수) 매핑됩니다. */
 export async function catchPokemon(): Promise<MyPokemon> {
   const pokemonId = await pickRandomBaseFormId();
   const info = await getPokemonInfo(pokemonId);
   const uniqueId = `caught-${Date.now()}`;
   const nowIso = new Date().toISOString();
-  const primaryType = info.types[0];
 
   const [, milestoneNumber] = await Promise.all([
+    Promise.all(info.types.map((t) => ensureLabel(t))),
     info.generationLabel
-      ? ensureLabel(info.generationLabel)
-      : Promise.resolve(),
-    primaryType ? ensureMilestone(primaryType) : Promise.resolve(undefined),
+      ? ensureMilestone(info.generationLabel)
+      : Promise.resolve(undefined),
   ]);
 
-  const stored: StoredBody = {
+  const view: PersistedView = {
     uniqueId,
     pokemonId,
     nickname: info.koreanName,
@@ -147,12 +91,14 @@ export async function catchPokemon(): Promise<MyPokemon> {
     heldItem: null,
     caughtAt: nowIso,
     lastTickAt: nowIso,
+    speciesName: info.koreanName,
+    image: info.image,
   };
 
   const issue = await createIssue({
-    title: `[포켓몬박스] ${info.koreanName}`,
-    body: serializeBody(stored),
-    labels: info.generationLabel ? [info.generationLabel] : undefined,
+    title: info.koreanName,
+    body: serializeBody(view),
+    labels: info.types.length > 0 ? info.types : undefined,
     milestone: milestoneNumber ?? undefined,
   });
 
@@ -174,11 +120,30 @@ export async function catchPokemon(): Promise<MyPokemon> {
   };
 }
 
+/** 변경된 MyPokemon을 이슈 본문에 다시 써 넣습니다. */
 async function persist(p: MyPokemon): Promise<MyPokemon> {
-  await updateIssue(p.issueNumber, serializeBody(toStored(p)));
+  await updateIssue(p.issueNumber, serializeBody(toView(p)));
   return p;
 }
 
+/** 닉네임을 변경합니다. 본문과 이슈 제목을 함께 갱신합니다. */
+export async function renameNickname(
+  pokemon: MyPokemon,
+  rawNickname: string,
+): Promise<MyPokemon> {
+  const nickname = rawNickname.trim();
+  if (!nickname) throw new Error("닉네임을 입력해주세요");
+  if (nickname === pokemon.nickname) return pokemon;
+  const ticked = tickPokemon(pokemon);
+  const updated: MyPokemon = { ...ticked, nickname };
+  await Promise.all([
+    updateIssue(pokemon.issueNumber, serializeBody(toView(updated))),
+    updateIssueTitle(pokemon.issueNumber, nickname),
+  ]);
+  return updated;
+}
+
+/** 나무열매를 먹여 레벨을 올립니다. 오른 레벨만큼 포인트도 함께 적립됩니다. */
 export async function feedBerry(
   pokemon: MyPokemon,
   berry: Berry,
@@ -194,6 +159,7 @@ export async function feedBerry(
   return persist(updated);
 }
 
+/** 놀아주기 — 친밀도를 1 올립니다. MAX에 처음 도달하면 코멘트로 축하합니다. */
 export async function playWith(pokemon: MyPokemon): Promise<MyPokemon> {
   if (pokemon.friendship >= MAX_FRIENDSHIP) return pokemon;
   const ticked = tickPokemon(pokemon);
@@ -214,6 +180,7 @@ export async function playWith(pokemon: MyPokemon): Promise<MyPokemon> {
   return updated;
 }
 
+/** 도구를 구매해 즉시 장착합니다. 포인트가 부족하면 에러를 던집니다. */
 export async function buyItem(
   pokemon: MyPokemon,
   item: ShopItem,
@@ -230,6 +197,7 @@ export async function buyItem(
   return persist(updated);
 }
 
+/** 장착 중인 도구를 해제합니다. */
 export async function unequipItem(pokemon: MyPokemon): Promise<MyPokemon> {
   if (!pokemon.heldItem) return pokemon;
   const ticked = tickPokemon(pokemon);
@@ -237,6 +205,7 @@ export async function unequipItem(pokemon: MyPokemon): Promise<MyPokemon> {
   return persist(updated);
 }
 
+/** 진화시킵니다. 타입이 바뀌었다면 이슈 라벨도 새 타입으로 교체합니다. */
 export async function evolvePokemon(
   pokemon: MyPokemon,
   next: NextEvolution,
@@ -260,17 +229,16 @@ export async function evolvePokemon(
     heldItem: consumeItem ? null : ticked.heldItem,
   };
 
-  const oldPrimary = pokemon.types[0];
-  const newPrimary = next.types[0];
-  const typeChanged = newPrimary && newPrimary !== oldPrimary;
-  const milestoneNumber = typeChanged
-    ? await ensureMilestone(newPrimary)
-    : null;
+  const typesChanged =
+    pokemon.types.length !== next.types.length ||
+    pokemon.types.some((t, i) => t !== next.types[i]);
 
   await Promise.all([
     persist(updated),
-    milestoneNumber != null
-      ? updateIssueMilestone(pokemon.issueNumber, milestoneNumber)
+    typesChanged
+      ? Promise.all(next.types.map((t) => ensureLabel(t))).then(() =>
+          updateIssueLabels(pokemon.issueNumber, next.types),
+        )
       : Promise.resolve(),
     createIssueComment(
       pokemon.issueNumber,
@@ -280,10 +248,7 @@ export async function evolvePokemon(
   return updated;
 }
 
+/** 포켓몬을 놓아줍니다(이슈를 닫습니다). */
 export async function releasePokemon(issueNumber: number): Promise<void> {
   await closeIssue(issueNumber);
 }
-
-export { type Berry } from "./berries";
-export { getBerryPlan } from "./berries";
-export { ITEMS, getItem, getItemName, type ShopItem } from "./items";

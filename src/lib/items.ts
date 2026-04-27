@@ -1,3 +1,4 @@
+/** 상점에서 구매할 수 있는 도구(아이템) 한 종의 정의. */
 export interface ShopItem {
   key: string;
   name: string;
@@ -6,9 +7,9 @@ export interface ShopItem {
 
 export const ITEM_PRICE = 100;
 
-/** All items that trigger an evolution in PokeAPI evolution chains.
- *  Keys correspond to PokeAPI item identifiers; names are Korean labels.
- *  Triggers covered: `use-item`, `trade` (with held_item), `level-up` (with held_item). */
+/** PokeAPI 진화 체인에서 트리거 역할을 하는 모든 도구 목록.
+ *  key는 PokeAPI 식별자, name은 한국어 표기.
+ *  포함되는 트리거: `use-item`, `trade`(지참물), `level-up`(지참물). */
 export const ITEMS: ShopItem[] = [
   // 진화의 돌 (use-item)
   { key: "fire-stone", name: "불꽃의돌", price: ITEM_PRICE },
@@ -69,10 +70,12 @@ export const ITEMS: ShopItem[] = [
 
 const ITEM_BY_KEY = new Map(ITEMS.map((it) => [it.key, it]));
 
+/** key에 해당하는 도구를 찾습니다. 없으면 undefined. */
 export function getItem(key: string): ShopItem | undefined {
   return ITEM_BY_KEY.get(key);
 }
 
+/** key를 한국어 표시명으로 바꿉니다. 정의가 없으면 key를 그대로 돌려줍니다. */
 export function getItemName(key: string): string {
   return ITEM_BY_KEY.get(key)?.name ?? key;
 }
