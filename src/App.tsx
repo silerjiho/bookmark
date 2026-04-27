@@ -50,7 +50,9 @@ export default function App() {
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-          <p className="text-white/70 text-sm tracking-tight">박스를 불러오는 중...</p>
+          <p className="text-white/70 text-sm tracking-tight">
+            박스를 불러오는 중...
+          </p>
         </div>
       </div>
     );
@@ -79,7 +81,7 @@ export default function App() {
     <div className="min-h-screen bg-[#f5f5f7]">
       {/* ── Hero (Apple-black) ────────────────────────────── */}
       <section className="bg-black">
-        <div className="max-w-[980px] mx-auto px-6 py-16 sm:py-24 text-center">
+        <div className="max-w-245 mx-auto px-6 py-16 sm:py-24 text-center">
           <h1
             className="text-white font-semibold tracking-tight"
             style={{
@@ -90,16 +92,6 @@ export default function App() {
           >
             포켓몬 박스
           </h1>
-          <p
-            className="mt-3 text-white/80 font-normal"
-            style={{
-              fontSize: "clamp(17px, 2vw, 21px)",
-              lineHeight: 1.19,
-              letterSpacing: "0.2px",
-            }}
-          >
-            전송받은 포켓몬과 함께 자라나세요.
-          </p>
 
           <div className="mt-8 flex items-center justify-center gap-3">
             <button
@@ -121,7 +113,7 @@ export default function App() {
       </section>
 
       {/* ── Box grid ──────────────────────────────────────── */}
-      <section className="max-w-[980px] mx-auto px-6 py-12 sm:py-16">
+      <section className="max-w-245 mx-auto px-6 py-12 sm:py-16">
         {items.length === 0 ? (
           <EmptyState onCatch={handleCatch} />
         ) : (

@@ -43,19 +43,15 @@ function StatusBadge({ kind }: { kind: Exclude<CardKind, "normal"> }) {
 function PokeballSpinner() {
   return (
     <div className="relative w-20 h-20 animate-pokeball">
-      <div className="absolute inset-0 rounded-full bg-gradient-to-b from-[#dc2626] to-[#dc2626] [background:linear-gradient(to_bottom,#dc2626_0%,#dc2626_50%,#fafafa_50%,#fafafa_100%)] border-[3px] border-[#1d1d1f]" />
-      <div className="absolute top-1/2 left-0 right-0 h-[6px] bg-[#1d1d1f] -translate-y-1/2" />
+      <div className="absolute inset-0 rounded-full bg-linear-to-b from-[#dc2626] to-[#dc2626] [background:linear-gradient(to_bottom,#dc2626_0%,#dc2626_50%,#fafafa_50%,#fafafa_100%)] border-[3px] border-[#1d1d1f]" />
+      <div className="absolute top-1/2 left-0 right-0 h-1.5 bg-[#1d1d1f] -translate-y-1/2" />
       <div className="absolute top-1/2 left-1/2 w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#fafafa] border-[3px] border-[#1d1d1f]" />
       <div className="absolute top-1/2 left-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#1d1d1f]" />
     </div>
   );
 }
 
-function CreatingCard({
-  optimistic,
-}: {
-  optimistic: MyPokemon | null;
-}) {
+function CreatingCard({ optimistic }: { optimistic: MyPokemon | null }) {
   return (
     <div className="relative bg-[#f5f5f7] rounded-2xl p-5 overflow-hidden apple-card-shadow">
       <StatusBadge kind="creating" />
@@ -89,7 +85,7 @@ function CreatingCard({
 
 function FriendshipDots({ value }: { value: number }) {
   return (
-    <div className="flex gap-[3px] justify-center mt-1">
+    <div className="flex gap-0.75 justify-center mt-1">
       {Array.from({ length: MAX_FRIENDSHIP }, (_, i) => (
         <span
           key={i}
@@ -109,7 +105,10 @@ function TypeChips({ types }: { types: string[] }) {
         <span
           key={t}
           className="text-[10px] font-semibold px-2 py-0.5 rounded-full tracking-tight"
-          style={{ backgroundColor: TYPE_COLORS[t] ?? "#9FA19F", color: getTypeTextColor(t) }}
+          style={{
+            backgroundColor: TYPE_COLORS[t] ?? "#9FA19F",
+            color: getTypeTextColor(t),
+          }}
         >
           {t}
         </span>
@@ -182,16 +181,30 @@ export default function PokemonCard({
         />
         {isGrowing && (
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 text-2xl animate-particle">✨</div>
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 text-2xl animate-particle">
+              ✨
+            </div>
             <div
               className="absolute top-1/2 left-2 text-xl animate-particle"
-              style={{ ["--dx" as string]: "-20px", ["--dy" as string]: "-80px", animationDelay: "200ms" } as React.CSSProperties}
+              style={
+                {
+                  ["--dx" as string]: "-20px",
+                  ["--dy" as string]: "-80px",
+                  animationDelay: "200ms",
+                } as React.CSSProperties
+              }
             >
               ✦
             </div>
             <div
               className="absolute bottom-2 right-2 text-xl animate-particle"
-              style={{ ["--dx" as string]: "20px", ["--dy" as string]: "-100px", animationDelay: "400ms" } as React.CSSProperties}
+              style={
+                {
+                  ["--dx" as string]: "20px",
+                  ["--dy" as string]: "-100px",
+                  animationDelay: "400ms",
+                } as React.CSSProperties
+              }
             >
               ✦
             </div>

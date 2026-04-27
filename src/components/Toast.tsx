@@ -7,7 +7,7 @@ export default function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-2 pointer-events-none w-full px-4 max-w-md">
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-200 flex flex-col items-center gap-2 pointer-events-none w-full px-4 max-w-md">
       {toasts.map((t) => (
         <button
           key={t.id}

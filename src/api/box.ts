@@ -9,7 +9,11 @@ import {
   updateIssueMilestone,
   createIssueComment,
 } from "./github";
-import { getPokemonInfo, pickRandomBaseFormId, type NextEvolution } from "./pokemon";
+import {
+  getPokemonInfo,
+  pickRandomBaseFormId,
+  type NextEvolution,
+} from "./pokemon";
 import type { Berry } from "./berries";
 import { type ShopItem } from "./items";
 
@@ -69,8 +73,10 @@ function elapsedHours(fromIso: string, toIso: string): number {
   return (Date.parse(toIso) - Date.parse(fromIso)) / 3_600_000;
 }
 
-/** Apply time-based point accrual since lastTickAt. Pure — does not persist. */
-export function tickPokemon(p: MyPokemon, now = new Date().toISOString()): MyPokemon {
+export function tickPokemon(
+  p: MyPokemon,
+  now = new Date().toISOString(),
+): MyPokemon {
   const hours = Math.max(0, elapsedHours(p.lastTickAt, now));
   const gained = Math.floor(hours * POINTS_PER_HOUR);
   if (gained <= 0) return p;
@@ -125,7 +131,9 @@ export async function catchPokemon(): Promise<MyPokemon> {
   const primaryType = info.types[0];
 
   const [, milestoneNumber] = await Promise.all([
-    info.generationLabel ? ensureLabel(info.generationLabel) : Promise.resolve(),
+    info.generationLabel
+      ? ensureLabel(info.generationLabel)
+      : Promise.resolve(),
     primaryType ? ensureMilestone(primaryType) : Promise.resolve(undefined),
   ]);
 
@@ -171,7 +179,10 @@ async function persist(p: MyPokemon): Promise<MyPokemon> {
   return p;
 }
 
-export async function feedBerry(pokemon: MyPokemon, berry: Berry): Promise<MyPokemon> {
+export async function feedBerry(
+  pokemon: MyPokemon,
+  berry: Berry,
+): Promise<MyPokemon> {
   const ticked = tickPokemon(pokemon);
   const newLevel = Math.min(MAX_LEVEL, ticked.level + berry.levelGain);
   const gained = newLevel - ticked.level;
@@ -188,7 +199,8 @@ export async function playWith(pokemon: MyPokemon): Promise<MyPokemon> {
   const ticked = tickPokemon(pokemon);
   const newFriendship = Math.min(MAX_FRIENDSHIP, ticked.friendship + 1);
   const updated: MyPokemon = { ...ticked, friendship: newFriendship };
-  const reachedMax = pokemon.friendship < MAX_FRIENDSHIP && newFriendship === MAX_FRIENDSHIP;
+  const reachedMax =
+    pokemon.friendship < MAX_FRIENDSHIP && newFriendship === MAX_FRIENDSHIP;
 
   await Promise.all([
     persist(updated),
@@ -202,7 +214,10 @@ export async function playWith(pokemon: MyPokemon): Promise<MyPokemon> {
   return updated;
 }
 
-export async function buyItem(pokemon: MyPokemon, item: ShopItem): Promise<MyPokemon> {
+export async function buyItem(
+  pokemon: MyPokemon,
+  item: ShopItem,
+): Promise<MyPokemon> {
   const ticked = tickPokemon(pokemon);
   if (ticked.points < item.price) {
     throw new Error("포인트가 부족합니다");
@@ -222,10 +237,14 @@ export async function unequipItem(pokemon: MyPokemon): Promise<MyPokemon> {
   return persist(updated);
 }
 
-export async function evolvePokemon(pokemon: MyPokemon, next: NextEvolution): Promise<MyPokemon> {
+export async function evolvePokemon(
+  pokemon: MyPokemon,
+  next: NextEvolution,
+): Promise<MyPokemon> {
   const ticked = tickPokemon(pokemon);
   const consumeItem =
-    next.requirement.kind === "item" && pokemon.heldItem === next.requirement.itemKey;
+    next.requirement.kind === "item" &&
+    pokemon.heldItem === next.requirement.itemKey;
 
   const newInfo = {
     pokemonId: next.pokemonId,
@@ -244,7 +263,9 @@ export async function evolvePokemon(pokemon: MyPokemon, next: NextEvolution): Pr
   const oldPrimary = pokemon.types[0];
   const newPrimary = next.types[0];
   const typeChanged = newPrimary && newPrimary !== oldPrimary;
-  const milestoneNumber = typeChanged ? await ensureMilestone(newPrimary) : null;
+  const milestoneNumber = typeChanged
+    ? await ensureMilestone(newPrimary)
+    : null;
 
   await Promise.all([
     persist(updated),

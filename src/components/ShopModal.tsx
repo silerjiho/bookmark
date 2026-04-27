@@ -7,17 +7,22 @@ interface ShopModalProps {
   onBuy: (item: ShopItem) => Promise<void> | void;
 }
 
-export default function ShopModal({ points, acting, onClose, onBuy }: ShopModalProps) {
+export default function ShopModal({
+  points,
+  acting,
+  onClose,
+  onBuy,
+}: ShopModalProps) {
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center apple-glass animate-in fade-in"
+      className="fixed inset-0 z-60 flex items-end sm:items-center justify-center apple-glass animate-in fade-in"
       onClick={onClose}
     >
       <div
         className="bg-white w-full sm:max-w-md max-h-[90vh] overflow-auto sm:rounded-2xl rounded-t-3xl shadow-[0_-10px_60px_rgba(0,0,0,0.2)] animate-in zoom-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white/85 backdrop-blur-xl px-5 py-3 flex items-center justify-between border-b border-black/[0.06]">
+        <div className="sticky top-0 bg-white/85 backdrop-blur-xl px-5 py-3 flex items-center justify-between border-b border-black/6">
           <div>
             <h2 className="text-[17px] font-semibold text-[#1d1d1f] tracking-tight">
               상점
@@ -29,7 +34,7 @@ export default function ShopModal({ points, acting, onClose, onBuy }: ShopModalP
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-black/[0.06] hover:bg-black/[0.12] text-[#1d1d1f] flex items-center justify-center text-[15px] leading-none transition"
+            className="w-8 h-8 rounded-full bg-black/6 hover:bg-black/12 text-[#1d1d1f] flex items-center justify-center text-[15px] leading-none transition"
             aria-label="닫기"
           >
             ✕
@@ -52,7 +57,7 @@ export default function ShopModal({ points, acting, onClose, onBuy }: ShopModalP
                 className={`text-left bg-[#f5f5f7] rounded-xl px-3 py-3 transition ${
                   disabled
                     ? "opacity-40 cursor-not-allowed"
-                    : "hover:bg-black/[0.06] active:scale-[0.97]"
+                    : "hover:bg-black/6 active:scale-[0.97]"
                 }`}
               >
                 <div className="text-[14px] font-semibold text-[#1d1d1f] tracking-tight">
