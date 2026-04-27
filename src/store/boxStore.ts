@@ -25,11 +25,8 @@ export type PendingKind = "creating" | "parting";
 
 export interface Pending {
   kind: PendingKind;
-  /** Generated locally before the create-API returns. */
   tempId?: string;
-  /** Real uniqueId once known (always set for parting; set for creating after API resolves). */
   uniqueId?: string;
-  /** Optimistic snapshot we expect the server to converge to. Null for parting / pre-create-resolution. */
   optimistic: MyPokemon | null;
   startedAt: number;
 }
@@ -40,15 +37,10 @@ export interface Toast {
 }
 
 interface BoxState {
-  /** 화면 표시의 기준이 되는 박스 상태. localStorage에 영속화되어 새로고침 후에도 우선 사용됩니다. */
   serverList: MyPokemon[];
-  /** 진행 중인 create/parting 작업 목록. growing(일반 변경)은 포함되지 않습니다. */
   pending: Pending[];
-  /** 화면 우하단에 잠시 떠 있는 토스트 메시지들. */
   toasts: Toast[];
-  /** 첫 로딩 진행 여부. */
   loading: boolean;
-  /** 첫 로딩 실패 메시지. */
   error: string | null;
 
   /** 앱 시작 시 박스를 불러옵니다. 로컬 데이터가 있으면 그쪽을 우선 보여줍니다. */
@@ -79,7 +71,9 @@ function pushToast(message: string) {
   const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   useBoxStore.setState((s) => ({ toasts: [...s.toasts, { id, message }] }));
   setTimeout(() => {
-    useBoxStore.setState((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
+    useBoxStore.setState((s) => ({
+      toasts: s.toasts.filter((t) => t.id !== id),
+    }));
   }, TOAST_DURATION_MS);
 }
 
@@ -87,7 +81,6 @@ function genTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** create/parting 진행 상태를 정리합니다. growing 종류는 더 이상 존재하지 않습니다. */
 function reconcile(serverList: MyPokemon[], pending: Pending[]): Pending[] {
   return pending.filter((p) => {
     if (p.kind === "creating") {
@@ -163,7 +156,11 @@ async function pollUntilReconciled() {
 function optimisticFeed(p: MyPokemon, berry: Berry): MyPokemon {
   const newLevel = Math.min(MAX_LEVEL, p.level + berry.levelGain);
   const gained = newLevel - p.level;
-  return { ...p, level: newLevel, points: p.points + gained * POINTS_PER_LEVEL_UP };
+  return {
+    ...p,
+    level: newLevel,
+    points: p.points + gained * POINTS_PER_LEVEL_UP,
+  };
 }
 
 function optimisticPlay(p: MyPokemon): MyPokemon {
@@ -254,7 +251,8 @@ export const useBoxStore = create<BoxState>()(
         } catch (e) {
           set({
             loading: false,
-            error: e instanceof Error ? e.message : "박스를 불러오지 못했습니다",
+            error:
+              e instanceof Error ? e.message : "박스를 불러오지 못했습니다",
           });
         }
       },
@@ -264,7 +262,12 @@ export const useBoxStore = create<BoxState>()(
         set((s) => ({
           pending: [
             ...s.pending,
-            { kind: "creating", tempId, optimistic: null, startedAt: Date.now() },
+            {
+              kind: "creating",
+              tempId,
+              optimistic: null,
+              startedAt: Date.now(),
+            },
           ],
         }));
         try {
@@ -272,28 +275,38 @@ export const useBoxStore = create<BoxState>()(
           set((s) => ({
             pending: s.pending.map((p) =>
               p.tempId === tempId
-                ? { ...p, uniqueId: newPokemon.uniqueId, optimistic: newPokemon }
+                ? {
+                    ...p,
+                    uniqueId: newPokemon.uniqueId,
+                    optimistic: newPokemon,
+                  }
                 : p,
             ),
           }));
           pollUntilReconciled();
         } catch (e) {
-          set((s) => ({ pending: s.pending.filter((p) => p.tempId !== tempId) }));
+          set((s) => ({
+            pending: s.pending.filter((p) => p.tempId !== tempId),
+          }));
           throw e;
         }
       },
 
       feedBerry: (p, berry) =>
-        applyMutation(p.uniqueId, (cur) => optimisticFeed(cur, berry), () =>
-          apiFeed(p, berry),
+        applyMutation(
+          p.uniqueId,
+          (cur) => optimisticFeed(cur, berry),
+          () => apiFeed(p, berry),
         ),
 
       playWith: (p) =>
         applyMutation(p.uniqueId, optimisticPlay, () => apiPlay(p)),
 
       buyItem: (p, item) =>
-        applyMutation(p.uniqueId, (cur) => optimisticBuy(cur, item), () =>
-          apiBuy(p, item),
+        applyMutation(
+          p.uniqueId,
+          (cur) => optimisticBuy(cur, item),
+          () => apiBuy(p, item),
         ),
 
       unequipItem: (p) =>
@@ -322,7 +335,12 @@ export const useBoxStore = create<BoxState>()(
         set((s) => ({
           pending: [
             ...s.pending.filter((p) => p.uniqueId !== pokemon.uniqueId),
-            { kind: "parting", uniqueId: pokemon.uniqueId, optimistic: null, startedAt },
+            {
+              kind: "parting",
+              uniqueId: pokemon.uniqueId,
+              optimistic: null,
+              startedAt,
+            },
           ],
         }));
         pushToast(`잘가~ ${pokemon.nickname} 꼭 데리러 올게!`);
