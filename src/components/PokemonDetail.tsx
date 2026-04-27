@@ -8,7 +8,7 @@ import {
 } from "../lib/box";
 import { type Berry, getBerryPlan } from "../lib/berries";
 import { type ShopItem, getItemName } from "../lib/items";
-import { getNextEvolutions } from "../api/pokeapi";
+import { getNextEvolutions } from "../api/pokeapi.api";
 import {
   TYPE_COLORS,
   getTypeTextColor,

@@ -1,4 +1,5 @@
-import type { PokemonBiology } from '../api/biology';
+import type { PokemonBiology } from '../api/biology.api';
+import type { PokemonData } from '../lib/pokemon';
 
 interface BiologyModalProps {
   selected: PokemonBiology;
@@ -42,7 +43,7 @@ export default function BiologyModal({ selected, onClose }: BiologyModalProps) {
         <div className="border-t pt-4">
           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Related</div>
           <div className="flex flex-wrap gap-2">
-            {selected.relatedPokemon.map(p => (
+            {selected.relatedPokemon.map((p: PokemonData) => (
               <div key={p.name} className="flex items-center gap-2 border px-2.5 py-1 rounded bg-slate-50 text-slate-600">
                 <img src={p.image} className="w-6 h-6 object-contain" alt="" />
                 <span className="text-xs font-medium">{p.name}</span>

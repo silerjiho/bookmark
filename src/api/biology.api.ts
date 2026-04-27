@@ -1,5 +1,5 @@
-import { readIssues, type GitHubIssue } from './github';
-import { getImage } from './pokeapi';
+import { readIssues, type GitHubIssue } from './github.api';
+import { getImage } from './pokeapi.api';
 import type { PokemonData } from '../lib/pokemon';
 
 /** (레거시) 과거 JSON 본문에서 사용하던 포켓몬 생물도감 표현. */

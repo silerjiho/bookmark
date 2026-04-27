@@ -8,8 +8,8 @@ import {
   ensureMilestone,
   updateIssueLabels,
   createIssueComment,
-} from "./github";
-import { getPokemonInfo, pickRandomBaseFormId } from "./pokeapi";
+} from "./github.api";
+import { getPokemonInfo, pickRandomBaseFormId } from "./pokeapi.api";
 import {
   MAX_LEVEL,
   MAX_FRIENDSHIP,
@@ -63,7 +63,7 @@ export async function readBox(): Promise<MyPokemon[]> {
     }),
   );
 
-  return results.filter((p): p is MyPokemon => p !== null);
+  return results.filter((p: MyPokemon | null): p is MyPokemon => p !== null);
 }
 
 /** 새 포켓몬을 받아 이슈로 등록합니다.
@@ -75,7 +75,7 @@ export async function catchPokemon(): Promise<MyPokemon> {
   const nowIso = new Date().toISOString();
 
   const [, milestoneNumber] = await Promise.all([
-    Promise.all(info.types.map((t) => ensureLabel(t))),
+    Promise.all(info.types.map((t: string) => ensureLabel(t))),
     info.generationLabel
       ? ensureMilestone(info.generationLabel)
       : Promise.resolve(undefined),
@@ -231,7 +231,7 @@ export async function evolvePokemon(
 
   const typesChanged =
     pokemon.types.length !== next.types.length ||
-    pokemon.types.some((t, i) => t !== next.types[i]);
+    pokemon.types.some((t: string, i: number) => t !== next.types[i]);
 
   await Promise.all([
     persist(updated),

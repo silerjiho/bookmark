@@ -1,4 +1,4 @@
-import type { PokemonBiology } from '../api/biology';
+import type { PokemonBiology } from '../api/biology.api';
 
 interface ListCardProps {
   doc: PokemonBiology;

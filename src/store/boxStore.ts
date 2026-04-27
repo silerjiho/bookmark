@@ -10,7 +10,7 @@ import {
   evolvePokemon as apiEvolve,
   releasePokemon as apiRelease,
   renameNickname as apiRename,
-} from "../api/box";
+} from "../api/box.api";
 import {
   MAX_FRIENDSHIP,
   MAX_LEVEL,

@@ -74,7 +74,7 @@ export async function getNextEvolutions(
     if (!children || children.length === 0) return [];
 
     return Promise.all(
-      children.map(async (child) => {
+      children.map(async (child: EvolutionNode) => {
         const childId = extractId(child.species.url);
         const info = await getPokemonInfo(childId);
         const detail = child.evolution_details[0];
@@ -96,7 +96,6 @@ export async function getNextEvolutions(
   }
 }
 
-// 레거시 biology.ts 와의 호환을 위해 남겨둔 한국어→영문 매핑.
 const KOREAN_TO_ENGLISH: Record<string, string> = {
   야돈: "slowpoke", 셀러: "shellder", 야도란: "slowbro", 야도킹: "slowking",
   피카츄: "pikachu", 이브이: "eevee",
