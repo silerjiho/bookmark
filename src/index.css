@@ -1,27 +1,261 @@
 @import "tailwindcss";
 
+/* ─── Apple-inspired tokens ─────────────────────────────────────────────── */
+:root {
+  --apple-bg-light: #f5f5f7;
+  --apple-bg-dark: #000000;
+  --apple-text-primary: #1d1d1f;
+  --apple-text-on-dark: #ffffff;
+  --apple-text-secondary: rgba(0, 0, 0, 0.8);
+  --apple-text-tertiary: rgba(0, 0, 0, 0.48);
+  --apple-blue: #0071e3;
+  --apple-link-blue: #0066cc;
+  --apple-bright-blue: #2997ff;
+  --apple-card-shadow: rgba(0, 0, 0, 0.22) 3px 5px 30px 0px;
+  --apple-surface-1: #272729;
+  --apple-surface-3: #28282a;
+
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Helvetica Neue", Helvetica, Arial, "Apple SD Gothic Neo",
+    "Malgun Gothic", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+html,
+body {
+  background: var(--apple-bg-light);
+  color: var(--apple-text-primary);
+}
+
+/* ─── Animations ───────────────────────────────────────────────────────── */
 @layer utilities {
   .animate-in {
     animation-duration: 300ms;
     animation-fill-mode: both;
     animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
   .fade-in {
     animation-name: fade-in;
   }
-  
   .zoom-in {
     animation-name: zoom-in;
+  }
+
+  /* ── 전송중 (creating) ── */
+  .animate-pokeball {
+    animation: pokeball-rock 1.6s ease-in-out infinite;
+    transform-origin: 50% 95%;
+  }
+
+  /* ── 성장중 (growing) — gentle pulsing glow on the sprite ── */
+  .animate-growing {
+    animation: growing-glow 1.8s ease-in-out infinite;
+  }
+
+  /* ── 이별중 (parting) — slow drift up + fade ── */
+  .animate-parting {
+    animation: parting-drift 2.4s ease-out infinite;
+  }
+
+  /* ── 진화 연출 (evolution flash) — used briefly when user taps 진화 ── */
+  .animate-evolve-flash {
+    animation: evolve-flash 1200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .animate-evolve-shimmer {
+    animation: evolve-shimmer 1200ms ease-in-out;
+  }
+
+  /* ── 레벨업 파티클 — bursts upward then fades ── */
+  .animate-particle {
+    animation: particle-burst 900ms cubic-bezier(0.2, 0.7, 0.4, 1) forwards;
+  }
+
+  /* ── 놓아주기 dramatic farewell (used on the modal sprite) ── */
+  .animate-release {
+    animation: release-out 1500ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  /* ── 친밀도 하트 pop ── */
+  .animate-heart-pop {
+    animation: heart-pop 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── Toast slide in from top ── */
+  .animate-toast-in {
+    animation: toast-in 400ms cubic-bezier(0.2, 0.7, 0.4, 1);
   }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes zoom-in {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pokeball-rock {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  25% {
+    transform: rotate(14deg);
+  }
+  50% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+
+@keyframes growing-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(0, 113, 227, 0))
+      drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(0, 113, 227, 0.65))
+      drop-shadow(0 0 28px rgba(41, 151, 255, 0.35));
+    transform: scale(1.04);
+  }
+}
+
+@keyframes parting-drift {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0px) saturate(1);
+  }
+  60% {
+    transform: translateY(-14px) scale(1.02);
+    opacity: 0.55;
+    filter: blur(1px) saturate(0.6);
+  }
+  100% {
+    transform: translateY(-32px) scale(0.94);
+    opacity: 0.15;
+    filter: blur(2.5px) saturate(0.2);
+  }
+}
+
+@keyframes evolve-flash {
+  0% {
+    background: rgba(255, 255, 255, 0);
+  }
+  20% {
+    background: rgba(255, 255, 255, 0.6);
+  }
+  60% {
+    background: rgba(255, 255, 255, 0.95);
+  }
+  100% {
+    background: rgba(255, 255, 255, 0);
+  }
+}
+
+@keyframes evolve-shimmer {
+  0% {
+    transform: scale(1);
+    filter: brightness(1) saturate(1);
+  }
+  35% {
+    transform: scale(1.08);
+    filter: brightness(2.2) saturate(0.2);
+  }
+  70% {
+    transform: scale(0.92);
+    filter: brightness(2.4) saturate(0.1);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1) saturate(1);
+  }
+}
+
+@keyframes particle-burst {
+  0% {
+    transform: translate(-50%, 0) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx, 0), var(--dy, -120px)) scale(1.1);
+    opacity: 0;
+  }
+}
+
+@keyframes release-out {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  35% {
+    transform: translateY(-12px) scale(1.05);
+    opacity: 0.85;
+    filter: blur(0.5px);
+  }
+  100% {
+    transform: translateY(-90px) scale(0.7);
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-in {
+  0% {
+    transform: translateY(-32px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ─── Utility: subtle Apple-style backdrop blur for modals ─────────────── */
+.apple-glass {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.apple-card-shadow {
+  box-shadow: var(--apple-card-shadow);
 }
