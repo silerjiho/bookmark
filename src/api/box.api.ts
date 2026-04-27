@@ -215,9 +215,14 @@ export async function evolvePokemon(
     next.requirement.kind === "item" &&
     pokemon.heldItem === next.requirement.itemKey;
 
+  // 별명이 현재 이름(진화 전 이름)과 같다면 새 이름(진화 후 이름)으로 변경
+  const newNickname =
+    pokemon.nickname === pokemon.name ? next.koreanName : pokemon.nickname;
+
   const newInfo = {
     pokemonId: next.pokemonId,
     name: next.koreanName,
+    nickname: newNickname,
     image: next.image,
     types: next.types,
     evolutionChainUrl: next.evolutionChainUrl,
@@ -235,6 +240,8 @@ export async function evolvePokemon(
 
   await Promise.all([
     persist(updated),
+    // 별명이 바뀌었거나 이름이 바뀌었으므로 이슈 제목도 갱신
+    updateIssueTitle(pokemon.issueNumber, newNickname),
     typesChanged
       ? Promise.all(next.types.map((t) => ensureLabel(t))).then(() =>
           updateIssueLabels(pokemon.issueNumber, next.types),

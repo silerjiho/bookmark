@@ -265,10 +265,12 @@ export const useBoxStore = create<BoxState>()(
           p.uniqueId,
           (cur) => {
             const consumesItem = next.requirement.kind === "item" && cur.heldItem === next.requirement.itemKey;
+            const newNickname = cur.nickname === cur.name ? next.koreanName : cur.nickname;
             return {
               ...cur,
               pokemonId: next.pokemonId,
               name: next.koreanName,
+              nickname: newNickname,
               image: next.image,
               types: next.types,
               evolutionChainUrl: next.evolutionChainUrl,
